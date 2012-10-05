@@ -20,6 +20,4 @@ class Vocabulary:
         return len(self.id2word)
 
 def read_corpus(stream, vocabulary):
-    for doc in stream:
-        for word in doc.split():
-            yield vocabulary[word]
+    return [[vocabulary[word] for word in doc.split()] for doc in stream]

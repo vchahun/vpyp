@@ -43,9 +43,11 @@ def main():
         training_corpus = read_corpus(train, vocabulary)
 
     if args.pyp:
+        logging.info('Using a PYP prior')
         doc_process = lambda: PYP(theta_doc, d_doc, Uniform(args.topics))
         topic_process = lambda: PYP(theta_topic, d_topic, Uniform(len(vocabulary)))
     else:
+        logging.info('Using a Dirichlet prior')
         doc_process = lambda: DirichletMultinomial(args.topics, theta_doc)
         topic_process = lambda: DirichletMultinomial(len(vocabulary), theta_topic)
 
