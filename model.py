@@ -1,4 +1,3 @@
-import math
 from collections import defaultdict
 from prob import mult_sample, remove_random
 
@@ -27,8 +26,8 @@ class TopicModel:
         return sum([self.topic_prob(doc, word, k) for k in xrange(self.n_topics)])
 
     def log_likelihood(self):
-        return sum(math.log(self.prob(doc, word)) * len(assignments)
-                for (doc, word), assignments in self.assignments.iteritems())
+        return (sum(t.log_likelihood() for t in self.topic_word)
+                + sum(d.log_likelihood() for d in self.document_topic))
 
     def map_estimate(self, n_words):
         for topic in self.topic_word:

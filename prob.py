@@ -1,3 +1,4 @@
+import math
 import random
 from collections import Counter
 
@@ -23,9 +24,11 @@ class DirichletMultinomial:
         self.alpha = alpha
         self.count = Counter()
         self.N = 0
+        #self._ll = 0
 
     def increment(self, k):
         assert (0 <= k < self.K)
+        #self._ll += math.log((self.alpha + self.count[k])/(self.K * self.alpha + self.N))
         self.count[k] += 1
         self.N += 1
 
@@ -33,11 +36,22 @@ class DirichletMultinomial:
         assert (0 <= k < self.K)
         self.count[k] -= 1
         self.N -= 1
+        #self._ll -= math.log((self.alpha + self.count[k])/(self.K * self.alpha + self.N))
 
     def prob(self, k):
         assert k >= 0
         if k > self.K: return 0
         return (self.alpha + self.count[k])/(self.K * self.alpha + self.N)
+
+    def pseudo_log_likelihood(self):
+        return sum(c * math.log(self.prob(k)) for k, c in self.count.iteritems())
+
+    def log_likelihood(self):
+        ll = (math.lgamma(self.K * self.alpha) - math.lgamma(self.K * self.alpha + self.N)
+                + sum(math.lgamma(self.alpha + self.count[k]) for k in range(self.K))
+                - self.K * math.lgamma(self.alpha))
+        #print self._ll, ll, self.pseudo_log_likelihood()
+        return ll
 
     def __str__(self):
         return 'Multinomial(K={self.K}, N={self.N}) ~ Dir({self.alpha})'.format(self=self)
@@ -46,14 +60,20 @@ class Uniform:
     def __init__(self, N):
         self.N = N
         self.p = 1/float(N)
+        self.count = 0
 
-    def increment(self, k): pass
+    def increment(self, k):
+        self.count += 1
 
-    def decrement(self, k): pass
+    def decrement(self, k):
+        self.count += 1
 
     def prob(self, k):
         if k > self.N: return 0
         return self.p
+
+    def log_likelihood(self):
+        return self.count * math.log(self.p)
 
     def __str__(self):
         return 'Uniform(N={self.N})'.format(self=self)
