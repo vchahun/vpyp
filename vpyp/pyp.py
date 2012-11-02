@@ -42,6 +42,7 @@ class PYP(CRP):
         super(PYP, self).__init__()
         self.base = base
         self.d_theta_prior = d_theta_prior
+        d_theta_prior.tie(self)
 
     @property
     def d(self):
@@ -87,16 +88,13 @@ class PYP(CRP):
             w += self.ncustomers[k] - self.d * len(self.tables[k])
         return w / (self.theta + self.total_customers)
 
-    def log_likelihood(self, base=False):
-        ll = (math.lgamma(self.theta) - math.lgamma(self.theta + self.total_customers)
+    def log_likelihood(self):
+        return (math.lgamma(self.theta) - math.lgamma(self.theta + self.total_customers)
                 + math.lgamma(self.theta / self.d + self.ntables)
                 - math.lgamma(self.theta / self.d)
                 + self.ntables * (math.log(self.d) - math.lgamma(1 - self.d))
                 + sum(math.lgamma(n - self.d) for tables in self.tables.itervalues()
                     for n in tables))
-        if base:
-            ll += self.base.log_likelihood()
-        return ll
 
     def __str__(self):
         return 'PYP(d={self.d}, theta={self.theta}, #customers={self.total_customers}, #tables={self.ntables}, #dishes={V}, Base={self.base})'.format(self=self, V=len(self.tables))

@@ -22,6 +22,7 @@ class DirichletMultinomial(object):
     def __init__(self, K, alpha_prior):
         self.K = K
         self.alpha_prior = alpha_prior
+        alpha_prior.tie(self)
         self.count = [0]*K
         self.N = 0
 
@@ -54,9 +55,9 @@ class DirichletMultinomial(object):
         return 'Multinomial(K={self.K}, N={self.N}) ~ Dir({self.alpha})'.format(self=self)
 
 class Uniform(object):
-    def __init__(self, N):
-        self.N = N
-        self.p = 1./N
+    def __init__(self, K):
+        self.K = K
+        self.p = 1./K
         self.count = 0
 
     def increment(self, k):
@@ -66,11 +67,11 @@ class Uniform(object):
         self.count -= 1
 
     def prob(self, k):
-        if k > self.N: return 0
+        if k > self.K: return 0
         return self.p
 
     def log_likelihood(self):
         return self.count * math.log(self.p)
 
     def __str__(self):
-        return 'Uniform(N={self.N})'.format(self=self)
+        return 'Uniform(K={self.K}, count={self.count})'.format(self=self)

@@ -10,8 +10,11 @@ def gamma_pdf(shape, scale, x):
             + (shape - 1) * math.log(x) - x/scale)
 
 class SampledPrior(object):
-    def tie(self, distributions):
-        self.tied_distributions = distributions
+    def __init__(self):
+        self.tied_distributions = []
+
+    def tie(self, distribution):
+        self.tied_distributions.append(distribution)
 
     def full_log_likelihood(self):
         return sum(d.log_likelihood() for d in self.tied_distributions) + self.log_likelihood()
@@ -37,6 +40,7 @@ class SampledPrior(object):
 
 class GammaPrior(SampledPrior):
     def __init__(self, shape, scale, x):
+        super(GammaPrior, self).__init__()
         self.shape = shape
         self.scale = scale
         self.x = x
@@ -59,10 +63,12 @@ class GammaPrior(SampledPrior):
         return gamma_pdf(1, x_from[0], x_to[0])
 
     def __repr__(self):
-        return 'Prior(x = {self.x} ~ Gamma({self.shape}, {self.scale}))'.format(self=self)
+        return ('Prior(x={self.x} ~ Gamma({self.shape}, {self.scale}) |'
+                ' nties={nties})').format(self=self, nties=len(self.tied_distributions))
 
 class BetaGammaPrior(SampledPrior):
     def __init__(self, x_alpha, x_beta, y_shape, y_scale, x, y):
+        super(BetaGammaPrior, self).__init__()
         self.x_alpha, self.x_beta = x_alpha, x_beta
         self.y_shape, self.y_scale = y_shape, y_scale
         self.x = x
@@ -89,5 +95,6 @@ class BetaGammaPrior(SampledPrior):
                 + gamma_pdf(1, xy_from[1], xy_to[1]))
 
     def __repr__(self):
-        return ('Prior(x = {self.x} ~ Beta({self.x_alpha}, {self.x_beta}); '
-                'y = {self.y} ~ Gamma({self.y_shape}, {self.y_scale}))').format(self=self)
+        return ('Prior(x={self.x} ~ Beta({self.x_alpha}, {self.x_beta}); '
+                'y={self.y} ~ Gamma({self.y_shape}, {self.y_scale}) |'
+                ' nties={nties})').format(self=self, nties=len(self.tied_distributions))

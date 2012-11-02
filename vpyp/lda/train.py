@@ -2,7 +2,7 @@ import argparse
 import logging
 import math
 import cPickle
-from corpus import Vocabulary, read_corpus
+from ..corpus import Vocabulary, read_corpus
 from model import LDA, LPYA
 
 mh_iter = 100 # number of Metropolis-Hastings sampling iterations
@@ -58,6 +58,7 @@ def main():
     run_sampler(model, training_corpus, args.iter)
 
     if args.output:
+        model.vocabulary = vocabulary
         with open(args.output, 'w') as f:
             cPickle.dump(model, f, protocol=-1)
 

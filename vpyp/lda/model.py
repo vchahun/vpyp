@@ -1,8 +1,8 @@
 import logging
 from collections import defaultdict
-from prob import mult_sample, remove_random, DirichletMultinomial, Uniform
-from prior import GammaPrior, BetaGammaPrior
-from pyp import PYP
+from ..prob import mult_sample, remove_random, DirichletMultinomial, Uniform
+from ..prior import GammaPrior, BetaGammaPrior
+from ..pyp import PYP
 
 class TopicModel(object):
     def __init__(self, n_topics):
@@ -33,16 +33,11 @@ class TopicModel(object):
                 + self.beta.log_likelihood())
 
     def resample_hyperparemeters(self, niter):
-        acceptance, rejection = 0, 0
         logging.info('Resampling doc-topic hyperparameters')
-        a, r = self.alpha.resample(niter)
-        acceptance += a
-        rejection += r
+        a1, r1 = self.alpha.resample(niter)
         logging.info('Resampling topic-word hyperparameters')
-        a, r = self.beta.resample(niter)
-        acceptance += a
-        rejection += r
-        return (acceptance, rejection)
+        a2, r2 = self.beta.resample(niter)
+        return (a1+a2, r1+r2)
 
     def map_estimate(self, n_words):
         for topic in self.topic_word:
@@ -59,8 +54,6 @@ class LDA(TopicModel):
         self.beta = GammaPrior(1, 1, 1) # alpha = 1
         self.document_topic = [DirichletMultinomial(n_topics, self.alpha) for _ in xrange(n_docs)]
         self.topic_word = [DirichletMultinomial(n_words, self.beta) for _ in xrange(n_topics)]
-        self.alpha.tie(self.document_topic)
-        self.beta.tie(self.topic_word)
 
 class LPYA(TopicModel):
     def __init__(self, n_topics, n_docs, n_words):
@@ -71,8 +64,6 @@ class LPYA(TopicModel):
         self.topic_base = Uniform(n_words)
         self.document_topic = [PYP(self.document_base, self.alpha) for _ in xrange(n_docs)]
         self.topic_word = [PYP(self.topic_base, self.beta) for _ in xrange(n_topics)]
-        self.alpha.tie(self.document_topic)
-        self.beta.tie(self.topic_word)
 
     def log_likelihood(self):
         return (super(LPYA, self).log_likelihood()
