@@ -24,7 +24,6 @@ class DirichletMultinomial(object):
         self.alpha_prior = alpha_prior
         self.count = [0]*K
         self.N = 0
-        #self._ll = 0
 
     @property
     def alpha(self):
@@ -32,7 +31,6 @@ class DirichletMultinomial(object):
 
     def increment(self, k):
         assert (0 <= k < self.K)
-        #self._ll += math.log((self.alpha + self.count[k])/(self.K * self.alpha + self.N))
         self.count[k] += 1
         self.N += 1
 
@@ -40,21 +38,16 @@ class DirichletMultinomial(object):
         assert (0 <= k < self.K)
         self.count[k] -= 1
         self.N -= 1
-        #self._ll -= math.log((self.alpha + self.count[k])/(self.K * self.alpha + self.N))
 
     def prob(self, k):
         assert k >= 0
         if k > self.K: return 0
         return (self.alpha + self.count[k])/(self.K * self.alpha + self.N)
 
-    def pseudo_log_likelihood(self):
-        return sum(c * math.log(self.prob(k)) for k, c in self.count.iteritems())
-
     def log_likelihood(self):
         ll = (math.lgamma(self.K * self.alpha) - math.lgamma(self.K * self.alpha + self.N)
                 + sum(math.lgamma(self.alpha + self.count[k]) for k in xrange(self.K))
                 - self.K * math.lgamma(self.alpha))
-        #print self._ll, ll, self.pseudo_log_likelihood()
         return ll
 
     def __str__(self):

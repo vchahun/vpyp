@@ -1,6 +1,7 @@
 import logging
 from collections import defaultdict
-from prob import mult_sample, remove_random, DirichletMultinomial, Uniform, GammaPrior, BetaGammaPrior
+from prob import mult_sample, remove_random, DirichletMultinomial, Uniform
+from prior import GammaPrior, BetaGammaPrior
 from pyp import PYP
 
 class TopicModel(object):
@@ -48,11 +49,8 @@ class TopicModel(object):
             yield [topic.prob(word) for word in range(n_words)]
 
     def __str__(self):
-        #dts = '\n'.join(map(str, self.document_topic))
-        #tws = '\n'.join(map(str, self.topic_word))
-        return 'TopicModel(#topics={self.n_topics} | alpha={self.alpha}, beta={self.beta}):'.format(self=self)
-                #'\n-> Document-topic processes:\n{dts}'
-                #'\n-> Topic-word processes:\n{tws}').format(self=self, dts=dts, tws=tws)
+        return ('TopicModel(#topics={self.n_topics} '
+                '| alpha={self.alpha}, beta={self.beta}):').format(self=self)
 
 class LDA(TopicModel):
     def __init__(self, n_topics, n_docs, n_words):
@@ -69,8 +67,14 @@ class LPYA(TopicModel):
         super(LPYA, self).__init__(n_topics)
         self.alpha = BetaGammaPrior(1.0, 1.0, 1.0, 1.0, 0.1, 1.1) # d, theta = 0.1, 1
         self.beta = BetaGammaPrior(1.0, 1.0, 1.0, 1.0, 0.1, 1.1) # d, theta = 0.1, 1
-        # TODO share base / fix likelihood
-        self.document_topic = [PYP(Uniform(n_topics), self.alpha) for _ in xrange(n_docs)]
-        self.topic_word = [PYP(Uniform(n_words), self.beta) for _ in xrange(n_topics)]
+        self.document_base = Uniform(n_topics)
+        self.topic_base = Uniform(n_words)
+        self.document_topic = [PYP(self.document_base, self.alpha) for _ in xrange(n_docs)]
+        self.topic_word = [PYP(self.topic_base, self.beta) for _ in xrange(n_topics)]
         self.alpha.tie(self.document_topic)
         self.beta.tie(self.topic_word)
+
+    def log_likelihood(self):
+        return (super(LPYA, self).log_likelihood()
+                + self.document_base.log_likelihood()
+                + self.topic_base.log_likelihood())

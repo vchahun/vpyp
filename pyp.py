@@ -42,7 +42,6 @@ class PYP(CRP):
         super(PYP, self).__init__()
         self.base = base
         self.d_theta_prior = d_theta_prior
-        #self._ll = 0
 
     @property
     def d(self):
@@ -72,13 +71,6 @@ class PYP(CRP):
 
     def increment(self, k):
         i = mult_sample(self._dish_tables(k))
-        """
-        if i == -1:
-            self._ll += math.log((self.theta + self.d * self.ntables) 
-                    / (self.theta + self.total_customers) * self.base.prob(k))
-        else:
-            self._ll += math.log((self.tables[k][i] - self.d) / (self.theta + self.total_customers))
-        """
         if self._seat_to(k, i):
             self.base.increment(k)
 
@@ -86,13 +78,6 @@ class PYP(CRP):
         i = self._customer_table(k, random.randint(0, self.ncustomers[k]-1))
         if self._unseat_from(k, i):
             self.base.decrement(k)
-        """
-            self._ll -= math.log((self.theta + self.d * self.ntables) 
-                    / (self.theta + self.total_customers) * self.base.prob(k))
-        else:
-            self._ll -= math.log((self.tables[k][i] - self.d)
-                    / (self.theta + self.total_customers))
-        """
     
     def prob(self, k): # total prob for dish k
         # new table
@@ -102,17 +87,15 @@ class PYP(CRP):
             w += self.ncustomers[k] - self.d * len(self.tables[k])
         return w / (self.theta + self.total_customers)
 
-    def pseudo_log_likelihood(self):
-        return sum(count * math.log(self.prob(k)) for k, count in self.ncustomers.iteritems())
-
-    def log_likelihood(self):
+    def log_likelihood(self, base=False):
         ll = (math.lgamma(self.theta) - math.lgamma(self.theta + self.total_customers)
                 + math.lgamma(self.theta / self.d + self.ntables)
                 - math.lgamma(self.theta / self.d)
                 + self.ntables * (math.log(self.d) - math.lgamma(1 - self.d))
-                + sum(math.lgamma(n - self.d) for tables in self.tables.itervalues() for n in tables)
-                + self.base.log_likelihood()) # XXX base might be shared!
-        #print self._ll, ll, self.pseudo_log_likelihood()
+                + sum(math.lgamma(n - self.d) for tables in self.tables.itervalues()
+                    for n in tables))
+        if base:
+            ll += self.base.log_likelihood()
         return ll
 
     def __str__(self):
