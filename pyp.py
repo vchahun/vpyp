@@ -38,12 +38,21 @@ class CRP(object):
         return False
 
 class PYP(CRP):
-    def __init__(self, theta, d, base):
+    def __init__(self, base, d_theta_prior):
         super(PYP, self).__init__()
-        self.theta = theta
-        self.d = d
         self.base = base
+        self.d_theta_prior = d_theta_prior
         #self._ll = 0
+
+    @property
+    def d(self):
+        # x = d
+        return self.d_theta_prior.x
+
+    @property
+    def theta(self):
+        # y = theta + d
+        return self.d_theta_prior.y - self.d_theta_prior.x
 
     def _dish_tables(self, k): # all the tables labeled with dish k
         if k in self.tables:
@@ -81,7 +90,8 @@ class PYP(CRP):
             self._ll -= math.log((self.theta + self.d * self.ntables) 
                     / (self.theta + self.total_customers) * self.base.prob(k))
         else:
-            self._ll -= math.log((self.tables[k][i] - self.d) / (self.theta + self.total_customers))
+            self._ll -= math.log((self.tables[k][i] - self.d)
+                    / (self.theta + self.total_customers))
         """
     
     def prob(self, k): # total prob for dish k
@@ -97,10 +107,11 @@ class PYP(CRP):
 
     def log_likelihood(self):
         ll = (math.lgamma(self.theta) - math.lgamma(self.theta + self.total_customers)
-                + math.lgamma(self.theta / self.d + self.ntables) - math.lgamma(self.theta / self.d)
+                + math.lgamma(self.theta / self.d + self.ntables)
+                - math.lgamma(self.theta / self.d)
                 + self.ntables * (math.log(self.d) - math.lgamma(1 - self.d))
                 + sum(math.lgamma(n - self.d) for tables in self.tables.itervalues() for n in tables)
-                + self.base.log_likelihood())
+                + self.base.log_likelihood()) # XXX base might be shared!
         #print self._ll, ll, self.pseudo_log_likelihood()
         return ll
 

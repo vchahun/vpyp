@@ -1,6 +1,5 @@
 import math
 import random
-from collections import Counter
 
 INF = float('inf')
 
@@ -11,6 +10,7 @@ def mult_sample(vals):
     for k, v in vals:
         if x < v: return k
         x -= v
+    return k
 
 def remove_random(assignments):
     i = random.randrange(0, len(assignments))
@@ -18,13 +18,17 @@ def remove_random(assignments):
     del assignments[i]
     return assignment
 
-class DirichletMultinomial:
-    def __init__(self, K, alpha):
+class DirichletMultinomial(object):
+    def __init__(self, K, alpha_prior):
         self.K = K
-        self.alpha = alpha
-        self.count = Counter()
+        self.alpha_prior = alpha_prior
+        self.count = [0]*K
         self.N = 0
         #self._ll = 0
+
+    @property
+    def alpha(self):
+        return self.alpha_prior.x
 
     def increment(self, k):
         assert (0 <= k < self.K)
@@ -48,7 +52,7 @@ class DirichletMultinomial:
 
     def log_likelihood(self):
         ll = (math.lgamma(self.K * self.alpha) - math.lgamma(self.K * self.alpha + self.N)
-                + sum(math.lgamma(self.alpha + self.count[k]) for k in range(self.K))
+                + sum(math.lgamma(self.alpha + self.count[k]) for k in xrange(self.K))
                 - self.K * math.lgamma(self.alpha))
         #print self._ll, ll, self.pseudo_log_likelihood()
         return ll
@@ -56,17 +60,17 @@ class DirichletMultinomial:
     def __str__(self):
         return 'Multinomial(K={self.K}, N={self.N}) ~ Dir({self.alpha})'.format(self=self)
 
-class Uniform:
+class Uniform(object):
     def __init__(self, N):
         self.N = N
-        self.p = 1/float(N)
+        self.p = 1./N
         self.count = 0
 
     def increment(self, k):
         self.count += 1
 
     def decrement(self, k):
-        self.count += 1
+        self.count -= 1
 
     def prob(self, k):
         if k > self.N: return 0
