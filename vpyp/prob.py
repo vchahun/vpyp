@@ -53,7 +53,7 @@ class DirichletMultinomial(object):
                 + sum(math.lgamma(self.alpha + self.count[k]) for k in xrange(self.K))
                 - self.K * math.lgamma(self.alpha))
 
-    def __str__(self):
+    def __repr__(self):
         return 'Multinomial(K={self.K}, N={self.N}) ~ Dir({self.alpha})'.format(self=self)
 
 class Uniform(object):
@@ -74,5 +74,5 @@ class Uniform(object):
     def log_likelihood(self):
         return - self.count * math.log(self.K)
 
-    def __str__(self):
+    def __repr__(self):
         return 'Uniform(K={self.K}, count={self.count})'.format(self=self)

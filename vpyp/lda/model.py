@@ -43,7 +43,7 @@ class TopicModel(object):
         for topic in self.topic_word:
             yield [topic.prob(word) for word in range(n_words)]
 
-    def __str__(self):
+    def __repr__(self):
         return ('TopicModel(#topics={self.n_topics} '
                 '| alpha={self.alpha}, beta={self.beta}):').format(self=self)
 

@@ -14,8 +14,6 @@ class CharLM:
         self.probs = numpy.zeros(self.K)
         for k in xrange(self.K):
             self.probs[k] = self.get_prob(k)
-            if self.probs[k] == 0:
-                print self.vocabulary[k]
 
     def increment(self, k):
         assert (0 <= k < self.K)

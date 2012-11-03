@@ -21,7 +21,7 @@ class Vocabulary:
         return len(self.id2word)
 
 def read_corpus(stream, vocabulary):
-    return [[vocabulary[word] for word in doc.split()] for doc in stream]
+    return [[vocabulary[word] for word in doc.decode('utf8').split()] for doc in stream]
 
 def ngrams(sentence, order):
     ngram = deque(maxlen=order)

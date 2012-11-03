@@ -76,7 +76,7 @@ class PYP(CRP):
             self.base.increment(k)
 
     def decrement(self, k):
-        i = self._customer_table(k, random.randint(0, self.ncustomers[k]-1))
+        i = self._customer_table(k, random.randrange(0, self.ncustomers[k]))
         if self._unseat_from(k, i):
             self.base.decrement(k)
     
@@ -96,5 +96,5 @@ class PYP(CRP):
                 + sum(math.lgamma(n - self.d) for tables in self.tables.itervalues()
                     for n in tables))
 
-    def __str__(self):
+    def __repr__(self):
         return 'PYP(d={self.d}, theta={self.theta}, #customers={self.total_customers}, #tables={self.ntables}, #dishes={V}, Base={self.base})'.format(self=self, V=len(self.tables))
