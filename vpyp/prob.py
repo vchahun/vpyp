@@ -1,7 +1,10 @@
 import math
 import random
 
-INF = float('inf')
+try:
+    import numpypy as numpy
+except ImportError:
+    import numpy
 
 def mult_sample(vals):
     vals = list(vals)
@@ -23,7 +26,7 @@ class DirichletMultinomial(object):
         self.K = K
         self.alpha_prior = alpha_prior
         alpha_prior.tie(self)
-        self.count = [0]*K
+        self.count = numpy.zeros(K)
         self.N = 0
 
     @property
@@ -42,14 +45,13 @@ class DirichletMultinomial(object):
 
     def prob(self, k):
         assert k >= 0
-        if k > self.K: return 0
+        if k >= self.K: return 0
         return (self.alpha + self.count[k])/(self.K * self.alpha + self.N)
 
     def log_likelihood(self):
-        ll = (math.lgamma(self.K * self.alpha) - math.lgamma(self.K * self.alpha + self.N)
+        return (math.lgamma(self.K * self.alpha) - math.lgamma(self.K * self.alpha + self.N)
                 + sum(math.lgamma(self.alpha + self.count[k]) for k in xrange(self.K))
                 - self.K * math.lgamma(self.alpha))
-        return ll
 
     def __str__(self):
         return 'Multinomial(K={self.K}, N={self.N}) ~ Dir({self.alpha})'.format(self=self)
@@ -57,7 +59,6 @@ class DirichletMultinomial(object):
 class Uniform(object):
     def __init__(self, K):
         self.K = K
-        self.p = 1./K
         self.count = 0
 
     def increment(self, k):
@@ -67,11 +68,11 @@ class Uniform(object):
         self.count -= 1
 
     def prob(self, k):
-        if k > self.K: return 0
-        return self.p
+        if k >= self.K: return 0
+        return 1/self.K
 
     def log_likelihood(self):
-        return self.count * math.log(self.p)
+        return - self.count * math.log(self.K)
 
     def __str__(self):
         return 'Uniform(K={self.K}, count={self.count})'.format(self=self)

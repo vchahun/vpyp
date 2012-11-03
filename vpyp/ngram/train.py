@@ -39,6 +39,7 @@ def main():
     parser.add_argument('--train', help='training corpus', required=True)
     parser.add_argument('--order', help='order of the model', type=int, required=True)
     parser.add_argument('--iter', help='number of iterations', type=int, required=True)
+    parser.add_argument('--charlm', help='use a character LM as a base distribution')
     parser.add_argument('--output', help='model output path')
 
     args = parser.parse_args()
@@ -49,7 +50,11 @@ def main():
     with open(args.train) as train:
         training_corpus = read_corpus(train, vocabulary)
 
-    base = Uniform(len(vocabulary))
+    if args.charlm:
+        from ..charlm import CharLM
+        base = CharLM(args.charlm, vocabulary)
+    else:
+        base = Uniform(len(vocabulary))
     model = PYPLM(args.order, base)
 
     logging.info('Training model of order %d', args.order)
