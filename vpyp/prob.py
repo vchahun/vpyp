@@ -69,7 +69,7 @@ class Uniform(object):
 
     def prob(self, k):
         if k >= self.K: return 0
-        return 1/self.K
+        return 1./self.K
 
     def log_likelihood(self):
         return - self.count * math.log(self.K)
