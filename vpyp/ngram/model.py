@@ -1,6 +1,6 @@
 import logging
 from ..pyp import PYP
-from ..prior import BetaGammaPrior
+from ..prior import PYPPrior
 
 class BackoffBase:
     def __init__(self, backoff, ctx):
@@ -18,7 +18,7 @@ class BackoffBase:
 
 class PYPLM:
     def __init__(self, order, initial_base):
-        self.alpha = BetaGammaPrior(1.0, 1.0, 1.0, 1.0, 0.8, 1.8) # d, theta = 0.8, 1
+        self.prior = PYPPrior(1.0, 1.0, 1.0, 1.0, 0.8, 1.0) # d, theta = 0.8, 1
         self.order = order
         self.backoff = initial_base if order == 1 else PYPLM(order-1, initial_base)
         self.models = {}
@@ -27,7 +27,7 @@ class PYPLM:
         """ create a new PYP if the context has not been seen """
         if ctx not in self.models:
             base = (self.backoff if self.order == 1 else BackoffBase(self.backoff, ctx[1:]))
-            return PYP(base, self.alpha)
+            return PYP(base, self.prior)
         return self.models[ctx]
 
     def increment(self, ctx, w):
@@ -43,12 +43,12 @@ class PYPLM:
 
     def log_likelihood(self):
         return (sum(m.log_likelihood() for m in self.models.itervalues())
-                + self.alpha.log_likelihood()
+                + self.prior.log_likelihood()
                 + self.backoff.log_likelihood())
 
     def resample_hyperparemeters(self, n_iter):
         logging.info('Resampling level %d hyperparameters', self.order)
-        a1, r1 = self.alpha.resample(n_iter)
+        a1, r1 = self.prior.resample(n_iter)
         if self.order == 1:
             return (a1, r1)
         else:
@@ -56,5 +56,5 @@ class PYPLM:
             return (a1+a2, r1+r2)
 
     def __repr__(self):
-        return ('PYPLM(order={self.order}, #ctx={C}, alpha={self.alpha}, '
+        return ('PYPLM(order={self.order}, #ctx={C}, prior={self.prior}, '
                 'backoff={self.backoff})').format(self=self, C=len(self.models))

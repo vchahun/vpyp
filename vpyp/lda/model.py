@@ -1,7 +1,7 @@
 import logging
 from collections import defaultdict
 from ..prob import mult_sample, remove_random, DirichletMultinomial, Uniform
-from ..prior import GammaPrior, BetaGammaPrior
+from ..prior import GammaPrior, PYPPrior
 from ..pyp import PYP
 
 class TopicModel(object):
@@ -32,11 +32,11 @@ class TopicModel(object):
                 + sum(d.log_likelihood() for d in self.document_topic)
                 + self.beta.log_likelihood())
 
-    def resample_hyperparemeters(self, niter):
+    def resample_hyperparemeters(self, n_iter):
         logging.info('Resampling doc-topic hyperparameters')
-        a1, r1 = self.alpha.resample(niter)
+        a1, r1 = self.alpha.resample(n_iter)
         logging.info('Resampling topic-word hyperparameters')
-        a2, r2 = self.beta.resample(niter)
+        a2, r2 = self.beta.resample(n_iter)
         return (a1+a2, r1+r2)
 
     def map_estimate(self, n_words):
@@ -45,7 +45,7 @@ class TopicModel(object):
 
     def __repr__(self):
         return ('TopicModel(#topics={self.n_topics} '
-                '| alpha={self.alpha}, beta={self.beta}):').format(self=self)
+                '| alpha={self.alpha}, beta={self.beta})').format(self=self)
 
 class LDA(TopicModel):
     def __init__(self, n_topics, n_docs, n_words):
@@ -58,8 +58,8 @@ class LDA(TopicModel):
 class LPYA(TopicModel):
     def __init__(self, n_topics, n_docs, n_words):
         super(LPYA, self).__init__(n_topics)
-        self.alpha = BetaGammaPrior(1.0, 1.0, 1.0, 1.0, 0.1, 1.1) # d, theta = 0.1, 1
-        self.beta = BetaGammaPrior(1.0, 1.0, 1.0, 1.0, 0.1, 1.1) # d, theta = 0.1, 1
+        self.alpha = PYPPrior(1.0, 1.0, 1.0, 1.0, 0.1, 1.0) # d, theta = 0.1, 1
+        self.beta = PYPPrior(1.0, 1.0, 1.0, 1.0, 0.8, 1.0) # d, theta = 0.8, 1
         self.document_base = Uniform(n_topics)
         self.topic_base = Uniform(n_words)
         self.document_topic = [PYP(self.document_base, self.alpha) for _ in xrange(n_docs)]

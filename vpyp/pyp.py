@@ -38,21 +38,19 @@ class CRP(object):
         return False
 
 class PYP(CRP):
-    def __init__(self, base, d_theta_prior):
+    def __init__(self, base, prior):
         super(PYP, self).__init__()
         self.base = base
-        self.d_theta_prior = d_theta_prior
-        d_theta_prior.tie(self)
+        self.prior = prior
+        prior.tie(self)
 
     @property
     def d(self):
-        # x = d
-        return self.d_theta_prior.x
+        return self.prior.discount
 
     @property
     def theta(self):
-        # y = theta + d
-        return self.d_theta_prior.y - self.d_theta_prior.x
+        return self.prior.strength
 
     def _dish_tables(self, k): # all the tables labeled with dish k
         if k in self.tables:

@@ -1,10 +1,12 @@
 import math
 import random
-
 try:
-    import numpypy as numpy
+    import numpypy
 except ImportError:
-    import numpy
+    pass
+import numpy
+
+# Utility functions
 
 def mult_sample(vals):
     vals = list(vals)
@@ -20,6 +22,8 @@ def remove_random(assignments):
     assignment = assignments[i]
     del assignments[i]
     return assignment
+
+# Distributions with priors 
 
 class DirichletMultinomial(object):
     def __init__(self, K, alpha_prior):
@@ -76,3 +80,36 @@ class Uniform(object):
 
     def __repr__(self):
         return 'Uniform(K={self.K}, count={self.count})'.format(self=self)
+
+class BetaBernouilli(object):
+    def __init__(self, alpha, beta):
+        self.alpha = alpha
+        self.beta = beta
+        self.positive = 0.
+        self.total = 0.
+
+    @property
+    def p(self):
+        return (self.alpha + self.positive)/(self.alpha + self.beta + self.total)
+
+    def increment(self, k):
+        self.total += 1
+        self.positive += k
+
+    def decrement(self, k):
+        self.total -= 1
+        self.positive -= k
+
+    def prob(self, k):
+        return self.p if k else (1 - self.p)
+
+    def log_likelihood(self):
+        return (math.lgamma(self.alpha + self.beta)
+                - math.lgamma(self.alpha) - math.lgamma(self.beta)
+                + math.lgamma(self.positive + self.alpha)
+                + math.lgamma(self.total - self.positive + self.beta)
+                - math.lgamma(self.alpha + self.beta + self.total))
+
+    def __repr__(self):
+        return ('Bernouilli(positive={self.positive}, total={self.total}) '
+                '~ Beta({self.alpha}, {self.beta})').format(self=self)

@@ -1,6 +1,8 @@
 import math
 import random
 
+# Probability density functions
+
 def beta_pdf(alpha, beta, x):
     return (math.lgamma(alpha + beta) - math.lgamma(alpha) - math.lgamma(beta)
             + (alpha - 1)  * math.log(x) + (beta - 1) * math.log(1 - x))
@@ -8,6 +10,8 @@ def beta_pdf(alpha, beta, x):
 def gamma_pdf(shape, scale, x):
     return (- shape * math.log(scale) - math.lgamma(shape) 
             + (shape - 1) * math.log(x) - x/scale)
+
+# Hyperparameter Priors
 
 class SampledPrior(object):
     def __init__(self):
@@ -19,10 +23,10 @@ class SampledPrior(object):
     def full_log_likelihood(self):
         return sum(d.log_likelihood() for d in self.tied_distributions) + self.log_likelihood()
 
-    def resample(self, niter):
+    def resample(self, n_iter):
         stats = [0, 0]
         old_ll = self.full_log_likelihood() # p(x)
-        for _ in xrange(niter):
+        for _ in xrange(n_iter):
             old_parameters = self.parameters # x
             self.sample_parameters() # x -> x*
             new_parameters = self.parameters # x*
@@ -39,6 +43,7 @@ class SampledPrior(object):
         return stats
 
 class GammaPrior(SampledPrior):
+    """Prior for parameters with [0, +inf[ range"""
     def __init__(self, shape, scale, x):
         super(GammaPrior, self).__init__()
         self.shape = shape
@@ -63,38 +68,75 @@ class GammaPrior(SampledPrior):
         return gamma_pdf(1, x_from[0], x_to[0])
 
     def __repr__(self):
-        return ('Prior(x={self.x} ~ Gamma({self.shape}, {self.scale}) |'
-                ' nties={nties})').format(self=self, nties=len(self.tied_distributions))
+        return ('GammaPrior(x={self.x} ~ Gamma({self.shape}, {self.scale}) | '
+                'nties={nties})').format(self=self, nties=len(self.tied_distributions))
 
-class BetaGammaPrior(SampledPrior):
-    def __init__(self, x_alpha, x_beta, y_shape, y_scale, x, y):
-        super(BetaGammaPrior, self).__init__()
-        self.x_alpha, self.x_beta = x_alpha, x_beta
-        self.y_shape, self.y_scale = y_shape, y_scale
+class BetaPrior(SampledPrior):
+    """Prior for parameters with [0, 1] range"""
+    def __init__(self, alpha, beta, x):
+        super(BetaPrior, self).__init__()
+        self.alpha = alpha
+        self.beta = beta
         self.x = x
-        self.y = y
 
     def log_likelihood(self):
-        return (beta_pdf(self.x_alpha, self.x_beta, self.x) 
-                + gamma_pdf(self.y_shape, self.y_scale, self.y))
+        return beta_pdf(self.alpha, self.beta, self.x)
     
     def get_parameters(self):
-        return (self.x, self.y)
+        return (self.x,)
 
     def set_parameters(self, params):
-        self.x, self.y = params
+        self.x, = params
 
     parameters = property(get_parameters, set_parameters)
 
     def sample_parameters(self):
         self.x = random.betavariate(10, 10*(1-self.x)/self.x) # Mean: x
-        self.y = random.gammavariate(1, self.y) # Mean: y
 
-    def proposal_log_likelihood(self, xy_from, xy_to):
-        return (beta_pdf(10, 10*(1-xy_from[0])/xy_from[0], xy_to[0])
-                + gamma_pdf(1, xy_from[1], xy_to[1]))
+    def proposal_log_likelihood(self, x_from, x_to):
+        return beta_pdf(10, 10*(1-x_from[0])/x_from[0], x_to[0])
 
     def __repr__(self):
-        return ('Prior(x={self.x} ~ Beta({self.x_alpha}, {self.x_beta}); '
-                'y={self.y} ~ Gamma({self.y_shape}, {self.y_scale}) |'
-                ' nties={nties})').format(self=self, nties=len(self.tied_distributions))
+        return ('BetaPrior(x={self.x} ~ Beta({self.alpha}, {self.beta}) | '
+                'nties={nties})').format(self=self, nties=len(self.tied_distributions))
+
+class PYPPrior(SampledPrior):
+    """Prior for PYP parameters (discount: ]0, 1]; strength: [-discount, +inf[)"""
+    def __init__(self, x_alpha, x_beta, y_shape, y_scale, discount, strength):
+        """x = d; y = theta + d"""
+        super(PYPPrior, self).__init__()
+        self.x_prior = BetaPrior(x_alpha, x_beta, discount)
+        self.y_prior = GammaPrior(y_shape, y_scale, discount + strength)
+
+    @property
+    def discount(self):
+        return self.x_prior.x
+
+    @property
+    def strength(self):
+        return self.y_prior.x - self.x_prior.x
+
+    def log_likelihood(self):
+        return self.x_prior.log_likelihood() + self.y_prior.log_likelihood()    
+
+    def get_parameters(self):
+        return (self.x_prior.x, self.y_prior.x)
+
+    def set_parameters(self, params):
+        self.x_prior.x, self.y_prior.x = params
+
+    parameters = property(get_parameters, set_parameters)
+
+    def sample_parameters(self):
+        self.x_prior.sample_parameters()
+        self.y_prior.sample_parameters()
+
+    def proposal_log_likelihood(self, xy_from, xy_to):
+        return (self.x_prior.proposal_log_likelihood((xy_from[0],), (xy_to[0],))
+                + self.y_prior.proposal_log_likelihood((xy_from[1],), (xy_to[1],)))
+
+    def __repr__(self):
+        return ('PYPPrior(discount={self.discount}, strength={self.strength} | '
+                'discount ~ Beta({self.x_prior.alpha}, {self.x_prior.beta}); '
+                'strength + discount ~ Gamma({self.y_prior.shape}, {self.y_prior.scale}) | '
+                'nties={nties})').format(self=self, nties=len(self.tied_distributions))
