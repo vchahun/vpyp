@@ -41,7 +41,7 @@ def run_sampler(model, corpus, n_iter):
         if it % 100 == 99:
             logging.info('Estimating sample')
             samples.append(model.map_estimate())
-    #return alignments
+
     logging.info('Combining %d samples', len(samples))
     align = AlignmentModel.combine(samples)
     for i, (f, e) in enumerate(corpus):

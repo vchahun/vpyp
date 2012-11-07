@@ -50,8 +50,8 @@ class TopicModel(object):
 class LDA(TopicModel):
     def __init__(self, n_topics, n_docs, n_words):
         super(LDA, self).__init__(n_topics)
-        self.alpha = GammaPrior(1, 1, 1) # alpha = 1
-        self.beta = GammaPrior(1, 1, 1) # alpha = 1
+        self.alpha = GammaPrior(1.0, 1.0, 1.0) # alpha = 1
+        self.beta = GammaPrior(1.0, 1.0, 1.0) # alpha = 1
         self.document_topic = [DirichletMultinomial(n_topics, self.alpha) for _ in xrange(n_docs)]
         self.topic_word = [DirichletMultinomial(n_words, self.beta) for _ in xrange(n_topics)]
 
