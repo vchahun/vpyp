@@ -3,19 +3,21 @@ import logging
 import math
 import cPickle
 from ..corpus import Vocabulary, read_corpus
+from ..prob import Uniform
 from model import LDA, LPYA
 
 mh_iter = 100 # number of Metropolis-Hastings sampling iterations
 
 def run_sampler(model, corpus, n_iter):
+    assignments = [[None]*len(document) for document in corpus]
+    n_words = sum(len(document) for document in corpus)
     for it in range(n_iter):
-        n_words = 0
         logging.info('Iteration %d/%d', it+1, n_iter)
         for d, document in enumerate(corpus):
-            for word in document:
-                n_words += 1
-                if it > 0: model.decrement(d, word)
-                model.increment(d, word)
+            document_assignments = assignments[d]
+            for i, word in enumerate(document):
+                if it > 0: model.decrement(d, word, document_assignments[i])
+                document_assignments[i] = model.increment(d, word)
         if it % 10 == 0:
             logging.info('Model: %s', model)
             ll = model.log_likelihood()
@@ -50,7 +52,9 @@ def main():
         training_corpus = read_corpus(train, vocabulary)
 
     if args.pyp:
-        model = LPYA(args.topics, len(training_corpus), len(vocabulary))
+        document_base = Uniform(args.topics)
+        topic_base = Uniform(len(vocabulary))
+        model = LPYA(args.topics, len(training_corpus), document_base, topic_base)
     else:
         model = LDA(args.topics, len(training_corpus), len(vocabulary))
 

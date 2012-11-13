@@ -4,6 +4,8 @@ import math
 import cPickle
 from ..corpus import Vocabulary, read_corpus, ngrams
 from ..prob import Uniform
+from ..pyp import PYP
+from ..prior import PYPPrior
 from model import PYPLM
 
 mh_iter = 100 # number of Metropolis-Hastings sampling iterations
@@ -39,6 +41,7 @@ def main():
     parser.add_argument('--train', help='training corpus', required=True)
     parser.add_argument('--order', help='order of the model', type=int, required=True)
     parser.add_argument('--iter', help='number of iterations', type=int, required=True)
+    parser.add_argument('--pyp', help='backoff to PYP(CharLM)', action='store_true')
     parser.add_argument('--charlm', help='use a character LM as a base distribution')
     parser.add_argument('--output', help='model output path')
 
@@ -52,7 +55,11 @@ def main():
 
     if args.charlm:
         from ..charlm import CharLM
-        base = CharLM(args.charlm, vocabulary)
+        char_lm = CharLM(args.charlm, vocabulary)
+        if args.pyp:
+            base = PYP(char_lm, PYPPrior(1.0, 1.0, 1.0, 1.0, 0.8, 1.0))
+        else:
+            base = char_lm
     else:
         base = Uniform(len(vocabulary))
     model = PYPLM(args.order, base)

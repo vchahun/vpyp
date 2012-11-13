@@ -26,16 +26,16 @@ def remove_random(assignments):
 # Distributions with priors 
 
 class DirichletMultinomial(object):
-    def __init__(self, K, alpha_prior):
+    def __init__(self, K, prior):
         self.K = K
-        self.alpha_prior = alpha_prior
-        alpha_prior.tie(self)
+        self.prior = prior
+        prior.tie(self)
         self.count = numpy.zeros(K)
         self.N = 0
 
     @property
     def alpha(self):
-        return self.alpha_prior.x
+        return self.prior.x
 
     def increment(self, k):
         assert (0 <= k < self.K)
@@ -52,34 +52,25 @@ class DirichletMultinomial(object):
         if k >= self.K: return 0
         return (self.alpha + self.count[k])/(self.K * self.alpha + self.N)
 
-    def log_likelihood(self):
-        return (math.lgamma(self.K * self.alpha) - math.lgamma(self.K * self.alpha + self.N)
+    def log_likelihood(self, full=False):
+        ll = (math.lgamma(self.K * self.alpha) - math.lgamma(self.K * self.alpha + self.N)
                 + sum(math.lgamma(self.alpha + self.count[k]) for k in xrange(self.K))
                 - self.K * math.lgamma(self.alpha))
+        if full:
+            ll += self.prior.log_likelihood()
+        return ll
+
+    def resample_hyperparemeters(self, n_iter):
+        return self.prior.resample(n_iter)
+
+    def __getstate__(self):
+        return (self.K, self.prior, self.count.tolist(), self.N)
+
+    def __setstate__(self, state):
+        self.K, self.prior, self.count, self.N = state
 
     def __repr__(self):
         return 'Multinomial(K={self.K}, N={self.N}) ~ Dir({self.alpha})'.format(self=self)
-
-class Uniform(object):
-    def __init__(self, K):
-        self.K = K
-        self.count = 0
-
-    def increment(self, k):
-        self.count += 1
-
-    def decrement(self, k):
-        self.count -= 1
-
-    def prob(self, k):
-        if k >= self.K: return 0
-        return 1./self.K
-
-    def log_likelihood(self):
-        return - self.count * math.log(self.K)
-
-    def __repr__(self):
-        return 'Uniform(K={self.K}, count={self.count})'.format(self=self)
 
 class BetaBernouilli(object):
     def __init__(self, alpha, beta):
@@ -103,13 +94,40 @@ class BetaBernouilli(object):
     def prob(self, k):
         return self.p if k else (1 - self.p)
 
-    def log_likelihood(self):
+    def log_likelihood(self, full=False):
         return (math.lgamma(self.alpha + self.beta)
                 - math.lgamma(self.alpha) - math.lgamma(self.beta)
                 + math.lgamma(self.positive + self.alpha)
                 + math.lgamma(self.total - self.positive + self.beta)
                 - math.lgamma(self.alpha + self.beta + self.total))
 
+    def resample_hyperparemeters(self, n_iter):
+        return (0, 0)
+
     def __repr__(self):
         return ('Bernouilli(positive={self.positive}, total={self.total}) '
                 '~ Beta({self.alpha}, {self.beta})').format(self=self)
+
+class Uniform(object):
+    def __init__(self, K):
+        self.K = K
+        self.count = 0
+
+    def increment(self, k):
+        self.count += 1
+
+    def decrement(self, k):
+        self.count -= 1
+
+    def prob(self, k):
+        if k >= self.K: return 0
+        return 1./self.K
+
+    def log_likelihood(self, full=False):
+        return - self.count * math.log(self.K)
+
+    def resample_hyperparemeters(self, n_iter):
+        return (0, 0)
+
+    def __repr__(self):
+        return 'Uniform(K={self.K}, count={self.count})'.format(self=self)

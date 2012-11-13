@@ -6,9 +6,9 @@ try:
 except ImportError:
     pass
 import numpy, math
-from ..prob import mult_sample, Uniform, BetaBernouilli
+from ..prob import mult_sample, BetaBernouilli
 from ..pyp import PYP
-from ..prior import PYPPrior, GammaPrior
+from ..prior import PYPPrior, GammaPrior, stuple
 
 def diagonal_matrix(flen, elen, scale):
     diag = numpy.array([[math.exp(-scale * abs(j/float(elen)-i/float(flen)))
@@ -47,17 +47,22 @@ class AlignmentDistribution:
             ll += sum(math.log(a_prob[i-1, j]) for i, j in points if i > 0)
         return ll
 
+    def resample_hyperparemeters(self, n_iter):
+        return self.scale_prior.resample(n_iter)
+
     def __repr__(self):
         return 'AlignmentDistribution(scale ~ {self.scale_prior})'.format(self=self)
 
-class AlignmentModel:
-    def __init__(self, n_source, n_target):
-        self.null = BetaBernouilli(1.0, 1.0)
-        self.scale_prior = GammaPrior(1.0, 1.0, 4.0)
-        self.a_table = AlignmentDistribution(self.scale_prior)
-        self.t_base = Uniform(n_target)
-        self.t_prior = PYPPrior(1.0, 1.0, 1.0, 1.0, 0.1, 1.0) # d, theta = 0.1, 1
-        self.t_table = [PYP(self.t_base, self.t_prior) for _ in xrange(n_source)]
+class AlignmentModel(object):
+    def __init__(self, n_source, t_base):
+        """AlignmentModel(n_source, t_base) -> alignment model
+        n_source: size of the source vocabulary
+        t_base: shared base of the t-table PYPs"""
+        self.null = BetaBernouilli(1.0, 1.0) # p(NULL) ~ Beta(1, 1)
+        self.a_table = AlignmentDistribution(GammaPrior(1.0, 1.0, 4.0))
+        self.t_base = t_base
+        self.t_table = [PYP(self.t_base, PYPPrior(1.0, 1.0, 1.0, 1.0, 0.1, 1.0))
+                for _ in xrange(n_source)]
 
     @property
     def p_null(self):
@@ -80,17 +85,22 @@ class AlignmentModel:
             self.t_table[f[i]].decrement(ej)
 
     def log_likelihood(self):
-        return (sum(t_word.log_likelihood() for t_word in self.t_table)
-                + self.t_base.log_likelihood() + self.t_prior.log_likelihood()
+        return (sum(t_word.log_likelihood() + t_word.prior.log_likelihood()
+                    for t_word in self.t_table)
+                + self.t_base.log_likelihood(full=True)
                 + self.null.log_likelihood()
-                + self.a_table.log_likelihood() + self.scale_prior.log_likelihood())
+                + self.a_table.log_likelihood() + self.a_table.scale_prior.log_likelihood())
 
     def resample_hyperparemeters(self, n_iter):
+        ar = stuple((0, 0))
+        logging.info('Resampling t-table PYP base hyperparameters')
+        ar += self.t_base.resample_hyperparemeters(n_iter)
         logging.info('Resampling t-table PYP hyperparameters')
-        a1, r1 = self.t_prior.resample(n_iter)
+        for t_word in self.t_table:
+            ar += t_word.resample_hyperparemeters(n_iter)
         logging.info('Resampling alignment distribution scale parameter')
-        a2, r2 = self.scale_prior.resample(n_iter)
-        return (a1+a2, r1+r2)
+        ar += self.a_table.resample_hyperparemeters(n_iter)
+        return ar
 
     def map_estimate(self):
         t_table = [dict((w, t_word.prob(w)) for w in t_word.tables) for t_word in self.t_table]
@@ -111,6 +121,6 @@ class AlignmentModel:
 
     def __repr__(self):
         return ('AlignmentModel(#source words={n_source} '
-                '| t-table ~ PYP(base={self.t_base}, prior={self.t_prior}) '
+                '| t-table[f] ~ PYP(base={self.t_base})'
                 '| a-table ~ {self.a_table} + p(NULL)={self.p_null} ~ {self.null}'
                 ).format(self=self, n_source=len(self.t_table))

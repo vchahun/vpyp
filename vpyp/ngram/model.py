@@ -41,19 +41,16 @@ class PYPLM:
     def prob(self, ctx, w):
         return self[ctx].prob(w)
 
-    def log_likelihood(self):
+    def log_likelihood(self, full=False):
         return (sum(m.log_likelihood() for m in self.models.itervalues())
                 + self.prior.log_likelihood()
-                + self.backoff.log_likelihood())
+                + self.backoff.log_likelihood(full=True))
 
     def resample_hyperparemeters(self, n_iter):
         logging.info('Resampling level %d hyperparameters', self.order)
         a1, r1 = self.prior.resample(n_iter)
-        if self.order == 1:
-            return (a1, r1)
-        else:
-            a2, r2 = self.backoff.resample_hyperparemeters(n_iter)
-            return (a1+a2, r1+r2)
+        a2, r2 = self.backoff.resample_hyperparemeters(n_iter)
+        return (a1+a2, r1+r2)
 
     def __repr__(self):
         return ('PYPLM(order={self.order}, #ctx={C}, prior={self.prior}, '

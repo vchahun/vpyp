@@ -1,9 +1,13 @@
 try:
-    import numpypy as numpy
+    import numpypy
 except ImportError:
-    import numpy
+    pass
+import numpy
 
-import kenlm
+try:
+    import kenlm
+except ImportError:
+    pass
 
 class CharLM:
     def __init__(self, path, vocabulary):
@@ -32,8 +36,11 @@ class CharLM:
         if k >= self.K: return self.get_prob(k)
         return self.probs[k]
 
-    def log_likelihood(self):
+    def log_likelihood(self, full=False):
         return numpy.log(self.probs).dot(self.count)
+
+    def resample_hyperparemeters(self, n_iter):
+        return (0, 0)
 
     def __getstate__(self):
         return (self.lm.path, self.vocabulary)

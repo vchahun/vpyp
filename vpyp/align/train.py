@@ -4,6 +4,10 @@ import math
 import cPickle
 from itertools import izip
 from ..corpus import Vocabulary
+from ..prob import Uniform
+from ..charlm import CharLM
+from ..prior import PYPPrior
+from ..pyp import PYP
 from model import AlignmentModel
 
 NULL = 'NULL'
@@ -38,7 +42,7 @@ def run_sampler(model, corpus, n_iter):
             arate = acceptance / float(acceptance + rejection)
             logging.info('Metropolis-Hastings acceptance rate: %.4f', arate)
             logging.info('Model: %s', model)
-        if it % 100 == 99:
+        if it > n_iter/10 and it % 10 == 0:
             logging.info('Estimating sample')
             samples.append(model.map_estimate())
 
@@ -54,6 +58,7 @@ def main():
     parser = argparse.ArgumentParser(description='Train alignment model')
     parser.add_argument('--train', help='training corpus', required=True)
     parser.add_argument('--iter', help='number of iterations', type=int, required=True)
+    parser.add_argument('--charlm', help='character language model')
     parser.add_argument('--output', help='model output path')
 
     args = parser.parse_args()
@@ -66,7 +71,13 @@ def main():
     with open(args.train) as train:
         training_corpus = read_parallel_corpus(train, source_vocabulary, target_vocabulary)
 
-    model = AlignmentModel(len(source_vocabulary), len(target_vocabulary))
+    if args.charlm:
+        logging.info('Preloading character language model')
+        char_lm = CharLM(args.charlm, target_vocabulary)
+        t_base = PYP(char_lm, PYPPrior(1.0, 1.0, 1.0, 1.0, 0.1, 1.0))
+    else:
+        t_base = Uniform(len(target_vocabulary))
+    model = AlignmentModel(len(source_vocabulary), t_base)
 
     logging.info('Training alignment model')
     alignments = run_sampler(model, training_corpus, args.iter)

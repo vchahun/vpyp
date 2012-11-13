@@ -86,13 +86,23 @@ class PYP(CRP):
             w += self.ncustomers[k] - self.d * len(self.tables[k])
         return w / (self.theta + self.total_customers)
 
-    def log_likelihood(self):
-        return (math.lgamma(self.theta) - math.lgamma(self.theta + self.total_customers)
-                + math.lgamma(self.theta / self.d + self.ntables)
-                - math.lgamma(self.theta / self.d)
-                + self.ntables * (math.log(self.d) - math.lgamma(1 - self.d))
-                + sum(math.lgamma(n - self.d) for tables in self.tables.itervalues()
-                    for n in tables))
+    def log_likelihood(self, full=False):
+        if self.d == 0: # Dirichlet Process
+            ll = (math.lgamma(self.theta) - math.lgamma(self.theta + self.total_customers)
+                    + self.ntables * math.log(self.theta))
+        else:
+            ll = (math.lgamma(self.theta) - math.lgamma(self.theta + self.total_customers)
+                    + math.lgamma(self.theta / self.d + self.ntables)
+                    - math.lgamma(self.theta / self.d)
+                    + self.ntables * (math.log(self.d) - math.lgamma(1 - self.d))
+                    + sum(math.lgamma(n - self.d) for tables in self.tables.itervalues()
+                        for n in tables))
+        if full:
+            ll += self.base.log_likelihood(full=True) + self.prior.log_likelihood()
+        return ll
+
+    def resample_hyperparemeters(self, n_iter):
+        return self.prior.resample(n_iter)
 
     def __repr__(self):
         return 'PYP(d={self.d}, theta={self.theta}, #customers={self.total_customers}, #tables={self.ntables}, #dishes={V}, Base={self.base})'.format(self=self, V=len(self.tables))

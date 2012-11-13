@@ -63,6 +63,8 @@ class GammaPrior(SampledPrior):
 
     def sample_parameters(self):
         self.x = random.gammavariate(1, self.x) # Mean: x
+        if self.x <= 0:
+            self.x = 1e-12
 
     def proposal_log_likelihood(self, x_from, x_to):
         return gamma_pdf(1, x_from[0], x_to[0])
@@ -92,6 +94,8 @@ class BetaPrior(SampledPrior):
 
     def sample_parameters(self):
         self.x = random.betavariate(10, 10*(1-self.x)/self.x) # Mean: x
+        if self.x <= 0 or self.x >= 1:
+            self.x = 0.5
 
     def proposal_log_likelihood(self, x_from, x_to):
         return beta_pdf(10, 10*(1-x_from[0])/x_from[0], x_to[0])
@@ -140,3 +144,9 @@ class PYPPrior(SampledPrior):
                 'discount ~ Beta({self.x_prior.alpha}, {self.x_prior.beta}); '
                 'strength + discount ~ Gamma({self.y_prior.shape}, {self.y_prior.scale}) | '
                 'nties={nties})').format(self=self, nties=len(self.tied_distributions))
+
+import operator
+
+class stuple(tuple):
+    def __add__(self, other):
+        return self.__class__(map(operator.add, self, other))
