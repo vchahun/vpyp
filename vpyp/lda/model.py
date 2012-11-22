@@ -53,32 +53,29 @@ class LDA(TopicModel):
                 '| alpha={self.alpha}, beta={self.beta})').format(self=self)
 
 class LPYA(TopicModel):
-    def __init__(self, n_topics, n_docs, document_base, topic_base):
+    def __init__(self, n_topics, n_docs, topic_base):
         super(LPYA, self).__init__(n_topics)
-        self.alpha = PYPPrior(1.0, 1.0, 1.0, 1.0, 0.1, 1.0) # d, theta = 0.1, 1
-        self.document_base = document_base
+        self.alpha = GammaPrior(1.0, 1.0, 1.0) # alpha = 1
         self.topic_base = topic_base
-        self.document_topic = [PYP(self.document_base, self.alpha) for _ in xrange(n_docs)]
+        self.document_topic = [DirichletMultinomial(n_topics, self.alpha) for _ in xrange(n_docs)]
         self.topic_word = [PYP(self.topic_base, PYPPrior(1.0, 1.0, 1.0, 1.0, 0.8, 1.0)) 
                 for _ in xrange(n_topics)]
 
     def log_likelihood(self):
         return (sum(d.log_likelihood() for d in self.document_topic)
-                + self.alpha.log_likelihood() + self.document_base.log_likelihood(full=True)
+                + self.alpha.log_likelihood()
                 + sum(t.log_likelihood() + t.prior.log_likelihood() for t in self.topic_word)
                 + self.topic_base.log_likelihood(full=True))
 
     def resample_hyperparemeters(self, n_iter):
         ar = stuple((0, 0))
-        logging.info('Resampling doc-topic PYP base hyperparameters')
-        ar += self.document_base.resample_hyperparemeters(n_iter)
         logging.info('Resampling topic-word PYP base hyperparameters')
-        ar += self.topic_base.resample_hyperparemeters(n_iter)
-        logging.info('Resampling doc-topic PYP hyperparameters')
-        ar += self.alpha.resample(n_iter)
+        ar += self.topic_base.resample_hyperparemeters(n_iter) # G_w^0
+        logging.info('Resampling doc-topic hyperparameters')
+        ar += self.alpha.resample(n_iter) # alpha
         logging.info('Resampling all topic-word PYP hyperparameters')
         for topic in self.topic_word:
-            ar += self.topic.resample_hyperparemeters(n_iter)
+            ar += topic.resample_hyperparemeters(n_iter) # d_w, T_w
         return ar
 
     def __repr__(self):

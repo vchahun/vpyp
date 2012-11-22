@@ -5,17 +5,17 @@ import cPickle
 from itertools import izip
 from ..corpus import Vocabulary
 from ..prob import Uniform
-from ..charlm import CharLM
+from ..charlm import CharLM, PoissonUniformCharLM
 from ..prior import PYPPrior
 from ..pyp import PYP
 from model import AlignmentModel
 
-NULL = 'NULL'
+NULL = '__NULL__'
 
 def read_parallel_corpus(stream, source_vocabulary, target_vocabulary):
     def sentences():
         for line in stream:
-            f, e = line.split(' ||| ')
+            f, e = line.decode('utf8').split(' ||| ')
             yield ([source_vocabulary[w] for w in [NULL]+f.split()], 
                     [target_vocabulary[w] for w in e.split()])
     return list(sentences())
@@ -59,6 +59,7 @@ def main():
     parser.add_argument('--train', help='training corpus', required=True)
     parser.add_argument('--iter', help='number of iterations', type=int, required=True)
     parser.add_argument('--charlm', help='character language model')
+    parser.add_argument('--pyp', help='G_w^0 is PYP(CharLM)', action='store_true')
     parser.add_argument('--output', help='model output path')
 
     args = parser.parse_args()
@@ -73,8 +74,14 @@ def main():
 
     if args.charlm:
         logging.info('Preloading character language model')
-        char_lm = CharLM(args.charlm, target_vocabulary)
-        t_base = PYP(char_lm, PYPPrior(1.0, 1.0, 1.0, 1.0, 0.1, 1.0))
+        if args.charlm == 'pu':
+            char_lm = PoissonUniformCharLM(target_vocabulary)
+        else:
+            char_lm = CharLM(args.charlm, target_vocabulary)
+        if args.pyp:
+            t_base = PYP(char_lm, PYPPrior(1.0, 1.0, 1.0, 1.0, 0.1, 1.0))
+        else:
+            t_base = char_lm
     else:
         t_base = Uniform(len(target_vocabulary))
     model = AlignmentModel(len(source_vocabulary), t_base)
@@ -92,7 +99,7 @@ def main():
         f_sentence = ' '.join(source_vocabulary[w] for w in f[1:])
         e_sentence = ' '.join(target_vocabulary[w] for w in e)
         al = ' '.join('{0}-{1}'.format(j-1, i) for i, j in enumerate(a) if j > 0)
-        print f_sentence, '|||', e_sentence, '|||', al
+        print(u'{0} ||| {1} ||| {2}'.format(f_sentence, e_sentence, al).encode('utf8'))
 
 if __name__ == '__main__':
     main()

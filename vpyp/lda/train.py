@@ -8,7 +8,7 @@ from model import LDA, LPYA
 
 mh_iter = 100 # number of Metropolis-Hastings sampling iterations
 
-def run_sampler(model, corpus, n_iter):
+def run_sampler(model, corpus, n_iter, cb=None):
     assignments = [[None]*len(document) for document in corpus]
     n_words = sum(len(document) for document in corpus)
     for it in range(n_iter):
@@ -32,6 +32,7 @@ def run_sampler(model, corpus, n_iter):
             ll = model.log_likelihood()
             ppl = math.exp(-ll / n_words)
             logging.info('LL=%.0f ppl=%.3f', ll, ppl)
+        if cb: cb(it)
 
 def main():
     logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -52,9 +53,8 @@ def main():
         training_corpus = read_corpus(train, vocabulary)
 
     if args.pyp:
-        document_base = Uniform(args.topics)
         topic_base = Uniform(len(vocabulary))
-        model = LPYA(args.topics, len(training_corpus), document_base, topic_base)
+        model = LPYA(args.topics, len(training_corpus), topic_base)
     else:
         model = LDA(args.topics, len(training_corpus), len(vocabulary))
 

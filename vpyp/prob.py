@@ -108,6 +108,8 @@ class BetaBernouilli(object):
         return ('Bernouilli(positive={self.positive}, total={self.total}) '
                 '~ Beta({self.alpha}, {self.beta})').format(self=self)
 
+# Distributions without priors 
+
 class Uniform(object):
     def __init__(self, K):
         self.K = K
@@ -131,3 +133,43 @@ class Uniform(object):
 
     def __repr__(self):
         return 'Uniform(K={self.K}, count={self.count})'.format(self=self)
+
+def log_binomial_coeff(k, n):
+    if k == 0: return 0
+    if k == 1: return math.log(n)
+    return math.lgamma(n + 1) - math.lgamma(k + 1) - math.lgamma(n - k + 1)
+
+class GammaPoisson:
+    def __init__(self, alpha, beta):
+        self.alpha = alpha
+        self.beta = beta
+        self.L, self.N = 0, 0
+        self.log_length_prod = 0 # log(prod_l(l!))
+
+    def increment(self, l):
+        self.L += l
+        self.N += 1
+        self.log_length_prod += math.lgamma(l + 1)
+
+    def decrement(self, l):
+        self.L -= l
+        self.N -= 1
+        self.log_length_prod -= math.lgamma(l + 1)
+
+    def prob(self, l):
+        r = self.L + self.alpha
+        p = 1 / (self.N + self.beta + 1)
+        return math.exp(log_binomial_coeff(l, l + r - 1)
+                + r * math.log(1 - p) + l * math.log(p))
+
+    def log_likelihood(self, full=False):
+        return (self.alpha * math.log(self.beta)
+                + math.lgamma(self.L + self.alpha) - math.lgamma(self.alpha)
+                - self.log_length_prod - (self.L + self.alpha) * math.log(self.N + self.beta))
+
+    def resample_hyperparemeters(self, n_iter):
+        return (0, 0)
+
+    def __repr__(self):
+        return ('Poisson(L={self.L}, N={self.N}) '
+                '~ Gamma({self.alpha}, {self.beta})').format(self=self)

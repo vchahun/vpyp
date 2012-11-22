@@ -18,7 +18,8 @@ def main():
         t_best = heapq.nlargest(10, ((t_word.prob(e), e) for e in  t_word.tables))
         for p, e in t_best:
             if p < 0.1: continue
-            print model.source_vocabulary[f], '->', model.target_vocabulary[e], ' = ', p
+            print(u'{0} -> {1} = {2}'.format(model.source_vocabulary[f], 
+                model.target_vocabulary[e], p).encode('utf8'))
 
 if __name__ == '__main__':
     main()
