@@ -1,0 +1,5 @@
+language: python
+python:
+  - "pypy"
+install: "pip install ." 
+script: nosetests

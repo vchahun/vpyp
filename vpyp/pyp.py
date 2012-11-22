@@ -1,6 +1,5 @@
 import math
 import random
-from prob import mult_sample
 
 class CRP(object):
     def __init__(self):
@@ -52,24 +51,24 @@ class PYP(CRP):
     def theta(self):
         return self.prior.strength
 
-    def _dish_tables(self, k): # all the tables labeled with dish k
-        if k in self.tables:
-            # existing tables
-            for i, n in enumerate(self.tables[k]):
-                yield i, n-self.d
-            # new table
-            yield -1, (self.theta + self.d * self.ntables) * self.base.prob(k)
-        else:
-            yield -1, 1
+    def _sample_table(self, k):
+        if k not in self.tables: return -1
+        p_new = (self.theta + self.d * self.ntables) * self.base.prob(k)
+        norm = p_new + self.ncustomers[k] - self.d * len(self.tables[k])
+        x = random.random() * norm
+        for i, c in enumerate(self.tables[k]):
+            if x < c - self.d: return i
+            x -= c - self.d
+        return -1
 
     def _customer_table(self, k, n): # find table index of nth customer with dish k
         tables = self.tables[k]
-        for i in xrange(len(tables)):
-            if n < tables[i]: return i
-            n -= tables[i]
+        for i, c in enumerate(tables):
+            if n < c: return i
+            n -= c
 
     def increment(self, k):
-        i = mult_sample(self._dish_tables(k))
+        i = self._sample_table(k)
         if self._seat_to(k, i):
             self.base.increment(k)
 
@@ -95,8 +94,8 @@ class PYP(CRP):
                     + math.lgamma(self.theta / self.d + self.ntables)
                     - math.lgamma(self.theta / self.d)
                     + self.ntables * (math.log(self.d) - math.lgamma(1 - self.d))
-                    + sum(math.lgamma(n - self.d) for tables in self.tables.itervalues()
-                        for n in tables))
+                    + sum(math.lgamma(c - self.d) for tables in self.tables.itervalues()
+                        for c in tables))
         if full:
             ll += self.base.log_likelihood(full=True) + self.prior.log_likelihood()
         return ll
