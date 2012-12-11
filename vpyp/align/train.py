@@ -12,10 +12,11 @@ from model import AlignmentModel
 
 NULL = '__NULL__'
 
-def read_parallel_corpus(stream, source_vocabulary, target_vocabulary):
+def read_parallel_corpus(stream, source_vocabulary, target_vocabulary, reverse=False):
     def sentences():
         for line in stream:
             f, e = line.decode('utf8').split(' ||| ')
+            if reverse: f, e = e, f
             yield ([source_vocabulary[w] for w in [NULL]+f.split()], 
                     [target_vocabulary[w] for w in e.split()])
     return list(sentences())
@@ -61,6 +62,8 @@ def main():
     parser.add_argument('--charlm', help='character language model')
     parser.add_argument('--pyp', help='G_w^0 is PYP(CharLM)', action='store_true')
     parser.add_argument('--output', help='model output path')
+    parser.add_argument('--reverse', help='train model in reverse direction (but output f-e)', 
+            action='store_true')
 
     args = parser.parse_args()
 
@@ -70,7 +73,8 @@ def main():
 
     logging.info('Reading parallel training data')
     with open(args.train) as train:
-        training_corpus = read_parallel_corpus(train, source_vocabulary, target_vocabulary)
+        training_corpus = read_parallel_corpus(train, source_vocabulary, target_vocabulary,
+                args.reverse)
 
     if args.charlm:
         logging.info('Preloading character language model')
@@ -95,11 +99,12 @@ def main():
             model.target_vocabulary = target_vocabulary
             cPickle.dump(model, f, protocol=-1)
 
+    fmt = ('{e}-{f}' if args.reverse else '{f}-{e}')
     for a, (f, e) in izip(alignments, training_corpus):
-        f_sentence = ' '.join(source_vocabulary[w] for w in f[1:])
-        e_sentence = ' '.join(target_vocabulary[w] for w in e)
-        al = ' '.join('{0}-{1}'.format(j-1, i) for i, j in enumerate(a) if j > 0)
-        print(u'{0} ||| {1} ||| {2}'.format(f_sentence, e_sentence, al).encode('utf8'))
+        #f_sentence = ' '.join(source_vocabulary[w] for w in f[1:])
+        #e_sentence = ' '.join(target_vocabulary[w] for w in e)
+        print(' '.join(fmt.format(f=j-1, e=i) for i, j in enumerate(a) if j > 0))
+        #print(u'{0} ||| {1} ||| {2}'.format(f_sentence, e_sentence, al).encode('utf8'))
 
 if __name__ == '__main__':
     main()

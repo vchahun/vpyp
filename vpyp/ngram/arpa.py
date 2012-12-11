@@ -38,7 +38,7 @@ def print_arpa(model, vocabulary):
         yield ''
         for n in range(model.order):
             level = levels[n]
-            yield '\\{0}-grams:\\'.format(n+1)
+            yield '\\{0}-grams:'.format(n+1)
             if n == 0:
                 m = level[()]
                 for w in vocabulary:
@@ -67,7 +67,7 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(message)s')
 
     parser = argparse.ArgumentParser(description='Export n-gram model as ARPA file')
-    parser.add_argument('--vocab', help='test corpus vocabulary', required=True)
+    parser.add_argument('--vocab', help='test corpus vocabulary (default: training vocabulary)')
     parser.add_argument('--model', help='trained model', required=True)
 
     args = parser.parse_args()
@@ -76,9 +76,14 @@ def main():
     with open(args.model) as model_file:
         model = cPickle.load(model_file)
 
-    logging.info('Reading vocabulary')
-    with open(args.vocab) as vocab:
-        vocabulary = set(model.vocabulary[w.strip().decode('utf8')] for w in vocab)
+    if args.vocab:
+        logging.info('Reading vocabulary')
+        with open(args.vocab) as vocab:
+            vocabulary = set(model.vocabulary[w.strip().decode('utf8')] for w in vocab)
+    else:
+        logging.info('Using training corpus vocabulary')
+        vocabulary = set(xrange(2, len(model.vocabulary)))
+    logging.info('Vocabulary size: %d', len(vocabulary))
 
     print_arpa(model, vocabulary)
 

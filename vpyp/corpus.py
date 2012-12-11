@@ -21,6 +21,10 @@ class Vocabulary:
             self.id2word.append(word)
         return self.word2id[word]
 
+    def update(self, vocabulary):
+        self.word2id = vocabulary.word2id
+        self.id2word = vocabulary.id2word
+
     def __iter__(self):
         return iter(self.id2word)
 
