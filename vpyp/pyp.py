@@ -44,6 +44,10 @@ class PYP(CRP):
         prior.tie(self)
 
     @property
+    def support(self):
+        return self.ncustomers.iterkeys()
+
+    @property
     def d(self):
         return self.prior.discount
 
@@ -67,10 +71,13 @@ class PYP(CRP):
             if n < c: return i
             n -= c
 
-    def increment(self, k):
-        i = self._sample_table(k)
+    def increment(self, k, initialize=False):
+        if initialize:
+            i = -1 if not k in self.tables else random.randrange(-1, len(self.tables[k]))
+        else:
+            i = self._sample_table(k)
         if self._seat_to(k, i):
-            self.base.increment(k)
+            self.base.increment(k, initialize=initialize)
 
     def decrement(self, k):
         i = self._customer_table(k, random.randrange(0, self.ncustomers[k]))
@@ -103,5 +110,48 @@ class PYP(CRP):
     def resample_hyperparemeters(self, n_iter):
         return self.prior.resample(n_iter)
 
+    def resample_base(self):
+        for k, tables in self.tables.iteritems():
+            for n in xrange(len(tables)):
+                self.base.decrement(k)
+                self.base.increment(k)
+        try:
+            self.base.resample_base()
+        except AttributeError:
+            pass
+
     def __repr__(self):
-        return 'PYP(d={self.d}, theta={self.theta}, #customers={self.total_customers}, #tables={self.ntables}, #dishes={V}, Base={self.base})'.format(self=self, V=len(self.tables))
+        return ('PYP(d={self.d}, theta={self.theta}, '
+                '#customers={self.total_customers}, #tables={self.ntables}, '
+                '#dishes={V}, Base={self.base})').format(self=self, V=len(self.tables))
+
+class DP(PYP):
+    @property
+    def alpha(self):
+        return self.prior.x
+
+    def _sample_table(self, k):
+        if k not in self.tables: return -1
+        p_new = self.alpha * self.base.prob(k)
+        norm = p_new + self.ncustomers[k]
+        x = random.random() * norm
+        for i, c in enumerate(self.tables[k]):
+            if x < c: return i
+            x -= c
+        return -1
+    
+    def prob(self, k): # total prob for dish k
+        w = self.alpha * self.base.prob(k) + self.ncustomers.get(k, 0)
+        return w / (self.alpha + self.total_customers)
+
+    def log_likelihood(self, full=False):
+        ll = (math.lgamma(self.alpha) - math.lgamma(self.alpha + self.total_customers)
+                + self.ntables * math.log(self.alpha))
+        if full:
+            ll += self.base.log_likelihood(full=True) + self.prior.log_likelihood()
+        return ll
+
+    def __repr__(self):
+        return ('DP(alpha={self.alpha}, '
+                '#customers={self.total_customers}, #tables={self.ntables}, '
+                '#dishes={V}, Base={self.base})').format(self=self, V=len(self.tables))
