@@ -151,6 +151,7 @@ class DP(PYP):
 
     def log_likelihood(self, full=False):
         ll = (math.lgamma(self.alpha) - math.lgamma(self.alpha + self.total_customers)
+                + sum(math.lgamma(c) for tables in self.tables.itervalues() for c in tables)
                 + self.ntables * math.log(self.alpha))
         if full:
             ll += self.base.log_likelihood(full=True) + self.prior.log_likelihood()
