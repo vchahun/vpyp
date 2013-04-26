@@ -3,10 +3,14 @@ import random
 
 class CRP(object):
     def __init__(self):
+        # {k: [count_k^1, .., count_k^t]}
         self.tables = {}
+        # sum(len(tables) for tables in self.ncustomers.values())
         self.ntables = 0
+        # {k: sum(tables) for k, tables in self.tables.items()}
         self.ncustomers = {}
-        self.total_customers = 0
+        # sum(self.ncustomers.values())
+        self.total_customers = 0 
 
     def _seat_to(self, k, i):
         if not k in self.tables: # add new dish
@@ -88,6 +92,7 @@ class PYP(CRP):
     def log_likelihood(self, full=False):
         if self.d == 0: # Dirichlet Process
             ll = (math.lgamma(self.theta) - math.lgamma(self.theta + self.total_customers)
+                    + sum(math.lgamma(c) for tables in self.tables.itervalues() for c in tables)
                     + self.ntables * math.log(self.theta))
         else:
             ll = (math.lgamma(self.theta) - math.lgamma(self.theta + self.total_customers)
