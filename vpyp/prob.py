@@ -37,7 +37,7 @@ class DirichletMultinomial(object):
     def alpha(self):
         return self.prior.x
 
-    def increment(self, k):
+    def increment(self, k, initialize=False):
         assert (0 <= k < self.K)
         self.count[k] += 1
         self.N += 1
@@ -72,6 +72,49 @@ class DirichletMultinomial(object):
     def __repr__(self):
         return 'Multinomial(K={self.K}, N={self.N}) ~ Dir({self.alpha})'.format(self=self)
 
+class SparseDirichletMultinomial(DirichletMultinomial):
+    def __init__(self, K, prior):
+        self.K = K
+        self.prior = prior
+        prior.tie(self)
+        self.count = {}
+        self.N = 0
+
+    @property
+    def support(self):
+        return self.count.iterkeys()
+
+    def increment(self, k, initialize=False):
+        assert (0 <= k < self.K)
+        self.count[k] = self.count.get(k, 0) + 1
+        self.N += 1
+
+    def decrement(self, k):
+        assert (0 <= k < self.K)
+        self.count[k] -= 1
+        if self.count[k] == 0:
+            del self.count[k]
+        self.N -= 1
+
+    def prob(self, k):
+        assert k >= 0
+        if k >= self.K: return 0
+        return (self.alpha + self.count.get(k, 0))/(self.K * self.alpha + self.N)
+
+    def log_likelihood(self, full=False):
+        ll = (math.lgamma(self.K * self.alpha) - math.lgamma(self.K * self.alpha + self.N)
+                + sum(math.lgamma(self.alpha + self.count[k]) for k in self.count)
+                - len(self.count) * math.lgamma(self.alpha)) # zero counts
+        if full:
+            ll += self.prior.log_likelihood()
+        return ll
+
+    def __getstate__(self):
+        return (self.K, self.prior, self.count, self.N)
+
+    def __setstate__(self, state):
+        self.K, self.prior, self.count, self.N = state
+
 class BetaBernouilli(object):
     def __init__(self, alpha, beta):
         self.alpha = alpha
@@ -83,7 +126,7 @@ class BetaBernouilli(object):
     def p(self):
         return (self.alpha + self.positive)/(self.alpha + self.beta + self.total)
 
-    def increment(self, k):
+    def increment(self, k, initialize=False):
         self.total += 1
         self.positive += k
 
@@ -115,7 +158,7 @@ class Uniform(object):
         self.K = K
         self.count = 0
 
-    def increment(self, k):
+    def increment(self, k, initialize=False):
         self.count += 1
 
     def decrement(self, k):
@@ -146,7 +189,7 @@ class GammaPoisson:
         self.L, self.N = 0, 0
         self.log_length_prod = 0 # log(prod_l(l!))
 
-    def increment(self, l):
+    def increment(self, l, initialize=False):
         self.L += l
         self.N += 1
         self.log_length_prod += math.lgamma(l + 1)

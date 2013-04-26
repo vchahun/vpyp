@@ -20,7 +20,7 @@ class CharLM:
         for k in xrange(self.K):
             self.probs[k] = self.get_prob(k)
 
-    def increment(self, k):
+    def increment(self, k, initialize=False):
         assert (0 <= k < self.K)
         self.count[k] += 1
 
