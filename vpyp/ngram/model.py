@@ -7,7 +7,7 @@ class BackoffBase:
         self.backoff = backoff
         self.ctx = ctx
 
-    def increment(self, k):
+    def increment(self, k, initialize=False):
         return self.backoff.increment(self.ctx, k)
 
     def decrement(self, k):
